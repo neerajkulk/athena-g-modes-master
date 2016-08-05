@@ -56,38 +56,29 @@ void problem(DomainS *pDomain)
             
             /* background */
             
+            
             rho = pow(1.0 + x2/2, -3.0);
             P   = pow(1.0 + x2/2, -2.0);
             
             /* eigenmodes */
             dvz = amp * (cos(-kx*x1 + kz*x2) - cos(kx*x1 + kz*x2));
             
+            dvx = amp*kz/kx * (cos(-kx*x1 + kz*x2) + cos(kx*x1 + kz*x2));
             
             
+            drho = (omega*amp/SQR(kxhat)) * (-sin(kx*x1 + kz*x2) - sin(-kx*x1 + kz*x2));
             
             
             dP = 0.0;
             
             /* write values to grid */
             pGrid->U[0][j][i].d = rho * (1.0 + drho);
+            pGrid->U[0][j][i].E =   P * (1.0 + dP)/Gamma_1 + 0.5*rho*(SQR(dvx)+SQR(dvz));
             
             pGrid->U[0][j][i].M1 = dvx * rho;
             pGrid->U[0][j][i].M2 = dvz * rho;
         }
     }
-    
-    
-    /* Adding history dumps*/
-    
-    void dump_history_enroll(const ConsFun_t pfun, const char *label);
-    
-    dump_history_enroll(vzleft, "<vzleft>");
-    
-    dump_history_enroll(vzright, "<vzright>");
-    
-    
-    
-    
     
     /* enroll special functions */
     StaticGravPot = grav_pot2;
@@ -112,6 +103,7 @@ void problem_read_restart(MeshS *pM, FILE *fp)
     
     for (nl=0; nl<(pM->NLevels); nl++){
         for (nd=0; nd<(pM->DomainsPerLevel[nl]); nd++){
+            bvals_mhd_fun(&(pM->Domain[nl][nd]), left_x2, reflect_ix2);
             bvals_mhd_fun(&(pM->Domain[nl][nd]), right_x2, reflect_ox2);
         }
     }
@@ -162,6 +154,7 @@ static void reflect_ix2(GridS *pGrid)
     }
     
     return;
+    
 }
 
 
@@ -202,14 +195,5 @@ static void reflect_ox2(GridS *pGrid)
 static Real grav_pot2(const Real x1, const Real x2, const Real x3)
 {
     return x2;
-}
-
-
-/*----------------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------------*/
-Real vzright(const GridS *pG, const int i, const int j, const int k) {
-    
-    return (pG->U[0][j][48].M2)/(pG->U[0][j][48].d);
 }
 
