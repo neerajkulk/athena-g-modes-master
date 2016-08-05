@@ -26,8 +26,6 @@ void problem(DomainS *pDomain)
 {
     /* define variables */
     GridS *pGrid = pDomain->Grid;
-    Cons1DS U1d;
-    Prim1DS W;   // Added this line... does it screw stuff up??
     int i,j,is,ie,js,je;
     Real amp,x1,x2,x3,lx,ly;
     Real rho, P;
@@ -41,8 +39,6 @@ void problem(DomainS *pDomain)
     /* size of the domain (in physical coordinates) */
     lx = pDomain->RootMaxX[0] - pDomain->RootMinX[0];
     ly = pDomain->RootMaxX[1] - pDomain->RootMinX[1];
-    
-    
     
     /* calculate the initial perturbation */
     n = sqrt(9.0/10.0);           /* brunt        */
@@ -59,25 +55,21 @@ void problem(DomainS *pDomain)
             cc_pos(pGrid,i,j,0,&x1,&x2,&x3);
             
             /* background */
+            
             rho = pow(1.0 + x2/2, -3.0);
             P   = pow(1.0 + x2/2, -2.0);
             
             /* eigenmodes */
             dvz = amp * (cos(-kx*x1 + kz*x2) - cos(kx*x1 + kz*x2));
             
-            dvx = (amp/kx)*(kz*cos(-kx*x1 + kz*x2) + kz*cos(kx*x1 + kz*x2) - (0.6-(SQR(omega)/SQR(kxhat)))*(sin(-kx*x1 + kz*x2) + sin(kx*x1 + kz*x2)));
             
             
-            drho = (omega*amp/SQR(kxhat)) * (sin(kx*x1 + kz*x2) - sin(-kx*x1 + kz*x2));
             
             
-
             dP = 0.0;
             
             /* write values to grid */
             pGrid->U[0][j][i].d = rho * (1.0 + drho);
-            pGrid->U[0][j][i].E =   P * (1.0 + dP)/Gamma_1 + 0.5*rho*(SQR(dvx)+SQR(dvz)); /* +
-                                                             second-order terms... */
             
             pGrid->U[0][j][i].M1 = dvx * rho;
             pGrid->U[0][j][i].M2 = dvz * rho;
@@ -120,7 +112,6 @@ void problem_read_restart(MeshS *pM, FILE *fp)
     
     for (nl=0; nl<(pM->NLevels); nl++){
         for (nd=0; nd<(pM->DomainsPerLevel[nl]); nd++){
-            bvals_mhd_fun(&(pM->Domain[nl][nd]), left_x2,  reflect_ix2);
             bvals_mhd_fun(&(pM->Domain[nl][nd]), right_x2, reflect_ox2);
         }
     }
@@ -215,10 +206,6 @@ static Real grav_pot2(const Real x1, const Real x2, const Real x3)
 
 
 /*----------------------------------------------------------------------------------*/
- Real vzleft(const GridS *pG, const int i, const int j, const int k) {
- 
- return (pG->U[0][j][16].M2)/(pG->U[0][j][16].d);
- }
 
 /*----------------------------------------------------------------------------------*/
 Real vzright(const GridS *pG, const int i, const int j, const int k) {

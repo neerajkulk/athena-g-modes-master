@@ -1,4 +1,3 @@
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +21,8 @@ static void bc_ix1(GridS *pGrid);
 static Real vorticity(const GridS *pG, const int i, const int j, const int k);
 static Real pleft(const GridS *pG, const int i, const int j, const int k);
 static Real vyintegral(const GridS *pG, const int i, const int j, const int k);
+static Real t_next_line_integral_output=0.0, dt_line_integral_output;
+
 
 //may need to screw around with the static stuff...
 
@@ -34,7 +35,10 @@ void problem(DomainS *pDomain)
     int k, ks = pGrid->ks, ke = pGrid->ke;
     Real x1,x2,x3;
     Real rho, p, prat, density, pressure, pi, vel, n, amp, lx, ly;
+    
+    dt_line_integral_output = par_getd("problem", "dt_line_integral");
 
+    
     
     /* size of the domain (in physical coordinates) */
     lx = pDomain->RootMaxX[0] - pDomain->RootMinX[0];
@@ -49,7 +53,6 @@ void problem(DomainS *pDomain)
     amp = 0.05 ;              /* Size of perturbation ~ 0.05 */
     
     
-    srand((unsigned)time(NULL));
     
     /* setup uniform ambient medium with spherical over-pressured region */
     
@@ -96,7 +99,7 @@ void problem(DomainS *pDomain)
         }
     }
     
-
+    
     
     
     /* Adding history dumps*/
@@ -129,7 +132,7 @@ void problem_read_restart(MeshS *pM, FILE *fp)
 ConsFun_t get_usr_expr(const char *expr)
 {
     if(strcmp(expr,"vorticity")==0) return vorticity;
-
+    
     return NULL;
 }
 
@@ -141,7 +144,58 @@ VOutFun_t get_usr_out_fun(const char *name){
 
 void Userwork_in_loop(MeshS *pM)
 {
+    int nl, nd, ntot;
+    GridS *pGrid;
+    int is, ie, js, je, ks, ke,jindex;
+    
+    Real line_integral = 0.0;
+    
+    FILE *outfile;
+    
+    
+    for (nl=0; nl<=(pM->NLevels)-1; nl++) {
+        for (nd=0; nd<=(pM->DomainsPerLevel[nl])-1; nd++) {
+            if (pM->Domain[nl][nd].Grid != NULL) {
+                pGrid = pM->Domain[nl][nd].Grid;
+                
+                is = pGrid->is; ie = pGrid->ie;
+                js = pGrid->js; je = pGrid->je;
+                ks = pGrid->ks; ke = pGrid->ke;
+                
+                Real lx = pGrid->MaxX[0] - pGrid->MinX[0];
+                Real ly = pGrid->MaxX[1] - pGrid->MinX[1];
+                Real xres = lx/(pGrid->dx1);
+                Real yres = ly/(pGrid->dx2);
+                
+                int iloc = (int)(xres/4);
+
+                
+                if (pGrid->time >= t_next_line_integral_output){
+                    
+                    /* calculate line integral */
+                
+                    for (jindex=js; jindex<=je; jindex++) {
+                        line_integral += (pGrid->U[0][jindex][iloc].M2/pGrid->U[0][jindex][iloc].d)*(pGrid->dx2);
+                        
+                    }
+                    
+                    
+                    t_next_line_integral_output += dt_line_integral_output;
+                    
+                    /* write data to disk */
+                    outfile = fopen("integral.dat", "a");
+                    fprintf(outfile, "%.20f\t%f\n",
+                            pGrid->time, line_integral);
+                    fclose(outfile);
+                }
+                
+            }
+        }
+    }
+    
+    return;
 }
+
 
 void Userwork_after_loop(MeshS *pM)
 {
@@ -187,7 +241,7 @@ static Real pleft(const GridS *pG, const int i, const int j, const int k) {
 }
 
 /*------------------------------------------------------------------------------
-Outputting vorticity vtk*/
+ Outputting vorticity vtk*/
 
 static Real vorticity(const GridS *pG, const int i, const int j, const int k)
 {
@@ -202,7 +256,7 @@ static Real vorticity(const GridS *pG, const int i, const int j, const int k)
 
 
 static Real vyintegral(const GridS *pG, const int i, const int j, const int k) {
-   
+    
     int jindex;
     int is = pG->is, ie = pG->ie;
     int js = pG->js, je = pG->je;
@@ -222,16 +276,10 @@ static Real vyintegral(const GridS *pG, const int i, const int j, const int k) {
         sum = sum + (pG->U[0][jindex][iloc].M2/pG->U[0][jindex][iloc].d)*(pG->dx2);
         
     }
-
+    
     
     return sum;
 }
-
-
-
-
-
-
 
 
 
